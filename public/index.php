@@ -18,18 +18,13 @@ if ($path === '/assessments.php') {
     exit;
 }
 
-$errorController = new ErrorController();
-$usersController = new UsersController(new UserRepository(), $errorController);
-$assessmentsController = new AssessmentsController(new AssessmentRepository(), $errorController);
+$container = app_container();
+$router = app_router();
+$errorController = $container->get(ErrorController::class);
 
-$router = new Router();
-$router->get('/', static function (): void {
-    header('Location: /users', true, 302);
-});
-$router->get('/users', [$usersController, 'getUsers']);
-$router->get('/users/{id}', [$usersController, 'getUserDetailByID']);
-$router->get('/assessments', [$assessmentsController, 'getAllAssessments']);
-$router->get('/assessments/{id}', [$assessmentsController, 'getAssessmentDetailByID']);
+if (!$errorController instanceof ErrorController) {
+    throw new RuntimeException('Failed to resolve ErrorController from container.');
+}
 
 if ($router->dispatch($method, $path)) {
     exit;
