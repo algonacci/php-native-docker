@@ -1,0 +1,15 @@
+{
+    "name": "braincore/php-native-docker",
+    "autoload": {
+        "psr-4": {
+            "Braincore\\PhpNativeDocker\\": "src/"
+        }
+    },
+    "authors": [
+        {
+            "name": "Eric Julianto",
+            "email": "86970816+algonacci@users.noreply.github.com"
+        }
+    ],
+    "require": {}
+}

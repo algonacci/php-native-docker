@@ -1,0 +1,25 @@
+services:
+  php:
+    build: .
+    container_name: native-php-franken
+    ports:
+      - "8200:80"
+      - "8250:443"
+    env_file:
+      - .env
+    environment:
+      # FrankenPHP/Caddy config
+      CADDY_HTTP_PORT: "80"
+      CADDY_SERVER_ROOT: "/var/www/html/public"
+      TZ: "Asia/Jakarta"
+      PHP_OPCACHE_ENABLE: "1"
+    volumes:
+      - .:/var/www/html
+    healthcheck:
+      test: ["CMD", "php", "-v"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    restart: unless-stopped
+    # Command-nya simpel aja, FrankenPHP bawaan image udah tau apa yang harus dilakuin
