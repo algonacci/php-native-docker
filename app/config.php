@@ -17,6 +17,7 @@ function app_config(): array
         'routes' => [
             'home' => '/',
             'users' => '/users',
+            'laravelCmsUsers' => '/laravel-cms-users',
             'assessments' => '/assessments',
         ],
     ];

@@ -28,7 +28,10 @@ $assessmentsRoute = isset($app['routes']['assessments']) ? (string) $app['routes
                     <a class="text-blue-400 hover:text-blue-300" href="<?= e($usersRoute) ?>">Users</a>
                     <a class="text-blue-400 hover:text-blue-300" href="/laravel-cms-users">Laravel CMS Users</a>
                     <a class="text-blue-400 hover:text-blue-300" href="<?= e($assessmentsRoute) ?>">Assessments</a>
-                    <a class="text-red-400 hover:text-red-300" href="/logout">Logout (<?= e($_SESSION['user_name'] ?? '') ?>)</a>
+                    <form action="/logout" method="post" class="inline">
+                        <input type="hidden" name="_token" value="<?= e(csrf_token()) ?>">
+                        <button type="submit" class="text-red-400 hover:text-red-300">Logout (<?= e($_SESSION['user_name'] ?? '') ?>)</button>
+                    </form>
                 </nav>
             <?php endif; ?>
         </div>

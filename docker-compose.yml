@@ -16,7 +16,7 @@ services:
     volumes:
       - .:/var/www/html
     healthcheck:
-      test: ["CMD", "php", "-v"]
+      test: ["CMD-SHELL", "php -r \"exit(@file_get_contents('http://127.0.0.1/healthz')===false?1:0);\""]
       interval: 30s
       timeout: 10s
       retries: 3

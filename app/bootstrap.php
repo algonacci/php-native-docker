@@ -1,7 +1,46 @@
 <?php
 declare(strict_types=1);
 
-session_start();
+function app_request_is_https(): bool
+{
+    $https = strtolower((string) ($_SERVER['HTTPS'] ?? ''));
+    $forwardedProto = strtolower((string) ($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? ''));
+
+    if ($https !== '' && $https !== 'off') {
+        return true;
+    }
+
+    return $forwardedProto === 'https';
+}
+
+function app_bootstrap_session(): void
+{
+    if (session_status() === PHP_SESSION_ACTIVE) {
+        return;
+    }
+
+    $secureCookie = app_request_is_https();
+
+    ini_set('session.use_strict_mode', '1');
+    ini_set('session.cookie_httponly', '1');
+    ini_set('session.cookie_samesite', 'Lax');
+
+    if ($secureCookie) {
+        ini_set('session.cookie_secure', '1');
+    }
+
+    session_set_cookie_params([
+        'lifetime' => 0,
+        'path' => '/',
+        'secure' => $secureCookie,
+        'httponly' => true,
+        'samesite' => 'Lax',
+    ]);
+
+    session_start();
+}
+
+app_bootstrap_session();
 
 require_once __DIR__ . '/db.php';
 require_once __DIR__ . '/config.php';
@@ -35,6 +74,24 @@ function app_is_debug(): bool
 function app_report_exception(Throwable $exception): void
 {
     error_log((string) $exception);
+}
+
+function app_health_status(): array
+{
+    $databaseStatus = 'ok';
+
+    try {
+        db()->query('SELECT 1');
+    } catch (Throwable $exception) {
+        app_report_exception($exception);
+        $databaseStatus = 'error';
+    }
+
+    return [
+        'status' => $databaseStatus === 'ok' ? 'ok' : 'degraded',
+        'database' => $databaseStatus,
+        'timestamp' => gmdate(DATE_ATOM),
+    ];
 }
 
 function app_context(): array
@@ -135,12 +192,19 @@ function app_router(): Router
     $assessmentsDetailPath = $assessmentsPath === '/' ? '/{id}' : $assessmentsPath . '/{id}';
 
     $router = new Router();
+    $router->get('/healthz', static function (): void {
+        $health = app_health_status();
+
+        http_response_code($health['status'] === 'ok' ? 200 : 503);
+        header('Content-Type: application/json; charset=utf-8');
+        echo json_encode($health, JSON_UNESCAPED_SLASHES);
+    });
     $router->get($homePath, static function () use ($usersPath): void {
         header('Location: ' . $usersPath, true, 302);
     });
     $router->get('/login', [$authController, 'showLogin']);
     $router->post('/login', [$authController, 'login']);
-    $router->get('/logout', [$authController, 'logout']);
+    $router->post('/logout', [$authController, 'logout']);
     $router->get($usersPath, [$usersController, 'getUsers']);
     $router->get($usersDetailPath, [$usersController, 'getUserDetailByID']);
     $router->get($laravelCmsUsersPath, [$laravelCmsUsersController, 'getLaravelCmsUsers']);
