@@ -153,6 +153,7 @@ function app_context(): array
             'laravelCmsUsers' => (string) config('routes.laravelCmsUsers', '/laravel-cms-users'),
             'assessments' => (string) config('routes.assessments', '/assessments'),
         ],
+        'navigation' => config('navigation', []),
     ];
 
     return $context;

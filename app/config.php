@@ -9,16 +9,32 @@ function app_config(): array
         return $config;
     }
 
+    $routes = [
+        'home' => '/',
+        'users' => '/users',
+        'laravelCmsUsers' => '/laravel-cms-users',
+        'assessments' => '/assessments',
+    ];
+
     $config = [
         'app' => [
             'name' => (string) (getenv('APP_NAME') ?: 'Omniflow LMS'),
             'version' => (string) (getenv('APP_VERSION') ?: 'dev'),
         ],
-        'routes' => [
-            'home' => '/',
-            'users' => '/users',
-            'laravelCmsUsers' => '/laravel-cms-users',
-            'assessments' => '/assessments',
+        'routes' => $routes,
+        'navigation' => [
+            [
+                'label' => 'Users',
+                'path' => $routes['users'],
+            ],
+            [
+                'label' => 'Laravel CMS Users',
+                'path' => $routes['laravelCmsUsers'],
+            ],
+            [
+                'label' => 'Assessments',
+                'path' => $routes['assessments'],
+            ],
         ],
     ];
 
