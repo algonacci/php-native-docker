@@ -13,6 +13,38 @@ function app_request_is_https(): bool
     return $forwardedProto === 'https';
 }
 
+function app_apply_security_headers(): void
+{
+    if (PHP_SAPI === 'cli' || PHP_SAPI === 'phpdbg' || headers_sent()) {
+        return;
+    }
+
+    header_remove('X-Powered-By');
+
+    header('X-Frame-Options: DENY');
+    header('X-Content-Type-Options: nosniff');
+    header('Referrer-Policy: strict-origin-when-cross-origin');
+    header('Permissions-Policy: geolocation=(), microphone=(), camera=()');
+    header(
+        "Content-Security-Policy: default-src 'self'; "
+        . "script-src 'self' https://cdn.tailwindcss.com 'unsafe-inline' 'unsafe-eval'; "
+        . "style-src 'self' 'unsafe-inline'; "
+        . "img-src 'self' data:; "
+        . "font-src 'self' data:; "
+        . "connect-src 'self'; "
+        . "form-action 'self'; "
+        . "base-uri 'self'; "
+        . "frame-ancestors 'none'; "
+        . "object-src 'none'"
+    );
+    header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
+    header('Pragma: no-cache');
+
+    if (app_request_is_https()) {
+        header('Strict-Transport-Security: max-age=31536000; includeSubDomains');
+    }
+}
+
 function app_bootstrap_session(): void
 {
     if (session_status() === PHP_SESSION_ACTIVE) {
@@ -41,6 +73,7 @@ function app_bootstrap_session(): void
 }
 
 app_bootstrap_session();
+app_apply_security_headers();
 
 require_once __DIR__ . '/db.php';
 require_once __DIR__ . '/config.php';

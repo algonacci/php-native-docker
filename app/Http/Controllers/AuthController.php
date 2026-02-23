@@ -3,9 +3,11 @@ declare(strict_types=1);
 
 final class AuthController
 {
-    private const LOGIN_MAX_ATTEMPTS = 5;
-    private const LOGIN_WINDOW_SECONDS = 300;
-    private const LOGIN_LOCK_SECONDS = 900;
+    private const DEFAULT_LOGIN_MAX_ATTEMPTS = 5;
+    private const DEFAULT_LOGIN_WINDOW_SECONDS = 300;
+    private const DEFAULT_LOGIN_LOCK_SECONDS = 900;
+    private const AUTH_FAILURE_DELAY_MICROSECONDS = 250000;
+    private const PASSWORD_VERIFY_PLACEHOLDER_HASH = '$2y$12$C.JA7Msq0gagdfn2lChpoOZ1CE48VN4iReA8mHI49MfDQpbRyRBGa';
 
     public function __construct(
         private readonly LaravelCmsUserRepository $laravelCmsUsers,
@@ -15,6 +17,11 @@ final class AuthController
 
     public function showLogin(): void
     {
+        if (app_is_authenticated()) {
+            header('Location: /users', true, 302);
+            return;
+        }
+
         render('pages/login', [
             'pageTitle' => 'Login',
         ]);
@@ -39,11 +46,15 @@ final class AuthController
             return;
         }
 
+        $maxAttempts = $this->loginMaxAttempts();
+        $windowSeconds = $this->loginWindowSeconds();
+        $lockSeconds = $this->loginLockSeconds();
+
         $throttle = login_throttle_status(
             $email,
-            self::LOGIN_MAX_ATTEMPTS,
-            self::LOGIN_WINDOW_SECONDS,
-            self::LOGIN_LOCK_SECONDS,
+            $maxAttempts,
+            $windowSeconds,
+            $lockSeconds,
         );
 
         if ($throttle['is_locked']) {
@@ -53,37 +64,34 @@ final class AuthController
         }
 
         $laravelCmsUser = $this->laravelCmsUsers->findByEmail($email);
+        $passwordHash = self::PASSWORD_VERIFY_PLACEHOLDER_HASH;
 
-        if ($laravelCmsUser === null) {
-            login_throttle_record_failure(
-                $email,
-                self::LOGIN_MAX_ATTEMPTS,
-                self::LOGIN_WINDOW_SECONDS,
-                self::LOGIN_LOCK_SECONDS,
-            );
-            $_SESSION['error'] = 'Email atau password salah.';
-            header('Location: /login', true, 302);
-            return;
+        if (is_array($laravelCmsUser) && isset($laravelCmsUser['password']) && is_string($laravelCmsUser['password']) && $laravelCmsUser['password'] !== '') {
+            $passwordHash = $laravelCmsUser['password'];
         }
 
-        if (!password_verify($password, $laravelCmsUser['password'])) {
+        $passwordMatches = password_verify($password, $passwordHash);
+
+        if ($laravelCmsUser === null || !$passwordMatches) {
             login_throttle_record_failure(
                 $email,
-                self::LOGIN_MAX_ATTEMPTS,
-                self::LOGIN_WINDOW_SECONDS,
-                self::LOGIN_LOCK_SECONDS,
+                $maxAttempts,
+                $windowSeconds,
+                $lockSeconds,
             );
+            $this->sleepOnAuthFailure();
             $_SESSION['error'] = 'Email atau password salah.';
             header('Location: /login', true, 302);
             return;
         }
 
         session_regenerate_id(true);
-        login_throttle_clear($email, self::LOGIN_WINDOW_SECONDS);
+        login_throttle_clear($email, $windowSeconds);
 
         $_SESSION['user_id'] = (int) $laravelCmsUser['id'];
         $_SESSION['user_name'] = $laravelCmsUser['name'];
         $_SESSION['user_email'] = $laravelCmsUser['email'];
+        $_SESSION['last_login_at'] = time();
 
         unset($_SESSION['error']);
 
@@ -118,5 +126,33 @@ final class AuthController
         session_destroy();
 
         header('Location: /login', true, 302);
+    }
+
+    private function loginMaxAttempts(): int
+    {
+        return max(1, (int) (getenv('AUTH_LOGIN_MAX_ATTEMPTS') ?: self::DEFAULT_LOGIN_MAX_ATTEMPTS));
+    }
+
+    private function loginWindowSeconds(): int
+    {
+        return max(60, (int) (getenv('AUTH_LOGIN_WINDOW_SECONDS') ?: self::DEFAULT_LOGIN_WINDOW_SECONDS));
+    }
+
+    private function loginLockSeconds(): int
+    {
+        return max(60, (int) (getenv('AUTH_LOGIN_LOCK_SECONDS') ?: self::DEFAULT_LOGIN_LOCK_SECONDS));
+    }
+
+    private function sleepOnAuthFailure(): void
+    {
+        $jitter = 0;
+
+        try {
+            $jitter = random_int(0, 150000);
+        } catch (Throwable) {
+            $jitter = 0;
+        }
+
+        usleep(self::AUTH_FAILURE_DELAY_MICROSECONDS + $jitter);
     }
 }
