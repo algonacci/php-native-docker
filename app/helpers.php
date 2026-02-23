@@ -52,6 +52,131 @@ function client_ip(): string
     return 'unknown';
 }
 
+function env_bool(string $name, bool $default = false): bool
+{
+    $value = getenv($name);
+
+    if ($value === false) {
+        return $default;
+    }
+
+    $normalized = strtolower(trim((string) $value));
+
+    if (in_array($normalized, ['1', 'true', 'yes', 'on'], true)) {
+        return true;
+    }
+
+    if (in_array($normalized, ['0', 'false', 'no', 'off'], true)) {
+        return false;
+    }
+
+    return $default;
+}
+
+/**
+ * @return Redis|null
+ */
+function app_redis_client(): mixed
+{
+    static $resolved = false;
+    static $client = null;
+    static $reportedMissingExtension = false;
+
+    if ($resolved) {
+        return $client;
+    }
+
+    $resolved = true;
+
+    if (!env_bool('REDIS_ENABLED', false)) {
+        $client = null;
+        return $client;
+    }
+
+    if (!class_exists('Redis')) {
+        if (!$reportedMissingExtension) {
+            error_log('REDIS_ENABLED=true but ext-redis is not installed. Falling back to file throttle.');
+            $reportedMissingExtension = true;
+        }
+        $client = null;
+        return $client;
+    }
+
+    $host = (string) (getenv('REDIS_HOST') ?: '127.0.0.1');
+    $port = (int) (getenv('REDIS_PORT') ?: 6379);
+    $db = max(0, (int) (getenv('REDIS_DB') ?: 0));
+    $password = (string) (getenv('REDIS_PASSWORD') ?: '');
+    $username = (string) (getenv('REDIS_USERNAME') ?: '');
+    $timeout = max(0.1, (float) (getenv('REDIS_TIMEOUT') ?: 2.0));
+    $readTimeout = max(0.1, (float) (getenv('REDIS_READ_TIMEOUT') ?: 2.0));
+
+    try {
+        $redis = new Redis();
+        $connected = $redis->connect($host, $port, $timeout, null, 0, $readTimeout);
+
+        if ($connected !== true) {
+            throw new RuntimeException('Unable to connect to Redis server.');
+        }
+
+        if ($username !== '' || $password !== '') {
+            if ($username !== '') {
+                $redis->auth([$username, $password]);
+            } else {
+                $redis->auth($password);
+            }
+        }
+
+        if ($db > 0) {
+            $redis->select($db);
+        }
+
+        $redis->ping();
+        $client = $redis;
+    } catch (Throwable $exception) {
+        app_report_exception($exception);
+        $client = null;
+    }
+
+    return $client;
+}
+
+function app_redis_health_status(): string
+{
+    if (!env_bool('REDIS_ENABLED', false)) {
+        return 'disabled';
+    }
+
+    $redis = app_redis_client();
+
+    if (!$redis instanceof Redis) {
+        return 'error';
+    }
+
+    try {
+        $redis->ping();
+        return 'ok';
+    } catch (Throwable $exception) {
+        app_report_exception($exception);
+        return 'error';
+    }
+}
+
+function login_throttle_backend(): string
+{
+    return app_redis_client() instanceof Redis ? 'redis' : 'file';
+}
+
+function app_redis_key_prefix(): string
+{
+    $rawPrefix = trim((string) (getenv('REDIS_PREFIX') ?: 'php-native:'));
+
+    if ($rawPrefix === '') {
+        return 'php-native:';
+    }
+
+    return rtrim($rawPrefix, ':') . ':';
+}
+
 /**
  * @return array{is_locked:bool,retry_after:int}
  */
@@ -61,6 +186,12 @@ function login_throttle_status(
     int $windowSeconds = 300,
     int $lockSeconds = 900,
 ): array {
+    $redisResult = login_throttle_status_redis($email, $maxAttempts, $windowSeconds, $lockSeconds);
+
+    if (is_array($redisResult)) {
+        return $redisResult;
+    }
+
     return login_throttle_mutate(
         static function (array &$state) use ($email, $maxAttempts, $windowSeconds, $lockSeconds): array {
             $now = time();
@@ -114,6 +245,10 @@ function login_throttle_record_failure(
     int $windowSeconds = 300,
     int $lockSeconds = 900,
 ): void {
+    if (login_throttle_record_failure_redis($email, $maxAttempts, $windowSeconds, $lockSeconds)) {
+        return;
+    }
+
     login_throttle_mutate(
         static function (array &$state) use ($email, $maxAttempts, $windowSeconds, $lockSeconds): void {
             $now = time();
@@ -153,6 +288,10 @@ function login_throttle_clear(
     string $email,
     int $windowSeconds = 300,
 ): void {
+    if (login_throttle_clear_redis($email)) {
+        return;
+    }
+
     login_throttle_mutate(
         static function (array &$state) use ($email, $windowSeconds): void {
             $now = time();
@@ -167,6 +306,143 @@ function login_throttle_clear(
 function login_throttle_key(string $email): string
 {
     return hash('sha256', strtolower(trim($email)) . '|' . client_ip());
+}
+
+/**
+ * @return array{0:string,1:string}
+ */
+function login_throttle_redis_keys(string $email): array
+{
+    $key = login_throttle_key($email);
+    $prefix = app_redis_key_prefix() . 'auth_throttle:';
+
+    return [
+        $prefix . 'attempts:' . $key,
+        $prefix . 'lock:' . $key,
+    ];
+}
+
+/**
+ * @return array{is_locked:bool,retry_after:int}|null
+ */
+function login_throttle_status_redis(
+    string $email,
+    int $maxAttempts,
+    int $windowSeconds,
+    int $lockSeconds,
+): ?array {
+    $redis = app_redis_client();
+
+    if (!$redis instanceof Redis) {
+        return null;
+    }
+
+    try {
+        [$attemptsKey, $lockKey] = login_throttle_redis_keys($email);
+        $lockTtl = (int) $redis->ttl($lockKey);
+
+        if ($lockTtl > 0) {
+            return [
+                'is_locked' => true,
+                'retry_after' => $lockTtl,
+            ];
+        }
+
+        if ($lockTtl === -1) {
+            $redis->expire($lockKey, $lockSeconds);
+
+            return [
+                'is_locked' => true,
+                'retry_after' => $lockSeconds,
+            ];
+        }
+
+        $attemptsRaw = $redis->get($attemptsKey);
+        $attempts = is_numeric($attemptsRaw) ? (int) $attemptsRaw : 0;
+
+        if ($attempts >= $maxAttempts) {
+            $redis->setex($lockKey, $lockSeconds, '1');
+            $redis->del($attemptsKey);
+
+            return [
+                'is_locked' => true,
+                'retry_after' => $lockSeconds,
+            ];
+        }
+
+        if ($attempts > 0 && $redis->ttl($attemptsKey) < 0) {
+            $redis->expire($attemptsKey, $windowSeconds);
+        }
+
+        return [
+            'is_locked' => false,
+            'retry_after' => 0,
+        ];
+    } catch (Throwable $exception) {
+        app_report_exception($exception);
+        return null;
+    }
+}
+
+function login_throttle_record_failure_redis(
+    string $email,
+    int $maxAttempts,
+    int $windowSeconds,
+    int $lockSeconds,
+): bool {
+    $redis = app_redis_client();
+
+    if (!$redis instanceof Redis) {
+        return false;
+    }
+
+    try {
+        [$attemptsKey, $lockKey] = login_throttle_redis_keys($email);
+        $lockTtl = (int) $redis->ttl($lockKey);
+
+        if ($lockTtl > 0) {
+            return true;
+        }
+
+        if ($lockTtl === -1) {
+            $redis->expire($lockKey, $lockSeconds);
+            return true;
+        }
+
+        $attempts = (int) $redis->incr($attemptsKey);
+
+        if ($attempts === 1) {
+            $redis->expire($attemptsKey, $windowSeconds);
+        }
+
+        if ($attempts >= $maxAttempts) {
+            $redis->setex($lockKey, $lockSeconds, '1');
+            $redis->del($attemptsKey);
+        }
+
+        return true;
+    } catch (Throwable $exception) {
+        app_report_exception($exception);
+        return false;
+    }
+}
+
+function login_throttle_clear_redis(string $email): bool
+{
+    $redis = app_redis_client();
+
+    if (!$redis instanceof Redis) {
+        return false;
+    }
+
+    try {
+        [$attemptsKey, $lockKey] = login_throttle_redis_keys($email);
+        $redis->del($attemptsKey, $lockKey);
+        return true;
+    } catch (Throwable $exception) {
+        app_report_exception($exception);
+        return false;
+    }
 }
 
 /**

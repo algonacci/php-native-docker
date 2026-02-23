@@ -2,8 +2,8 @@ FROM serversideup/php:8.4-frankenphp
 
 USER root
 
-# Install ekstensi yang lu butuhin (tambahin pgsql & pdo_pgsql)
-RUN install-php-extensions intl gd zip pdo_pgsql pgsql
+# Install ekstensi yang dibutuhkan aplikasi (DB + Redis + utility)
+RUN install-php-extensions intl gd zip pdo_pgsql pgsql redis
 
 WORKDIR /var/www/html
 

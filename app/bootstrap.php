@@ -112,6 +112,7 @@ function app_report_exception(Throwable $exception): void
 function app_health_status(): array
 {
     $databaseStatus = 'ok';
+    $redisStatus = function_exists('app_redis_health_status') ? app_redis_health_status() : 'unknown';
 
     try {
         db()->query('SELECT 1');
@@ -120,9 +121,16 @@ function app_health_status(): array
         $databaseStatus = 'error';
     }
 
+    $appStatus = 'ok';
+
+    if ($databaseStatus !== 'ok' || $redisStatus === 'error') {
+        $appStatus = 'degraded';
+    }
+
     return [
-        'status' => $databaseStatus === 'ok' ? 'ok' : 'degraded',
+        'status' => $appStatus,
         'database' => $databaseStatus,
+        'redis' => $redisStatus,
         'timestamp' => gmdate(DATE_ATOM),
     ];
 }
