@@ -13,12 +13,12 @@ $assessmentsRoute = isset($app['routes']['assessments']) ? (string) $app['routes
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?= e($title) ?></title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB" crossorigin="anonymous">
+    <link rel="stylesheet" href="/assets/css/app.css?v=<?= e($appVersion) ?>">
 </head>
 <body class="bg-body-tertiary min-vh-100">
     <header class="border-bottom bg-white">
         <div class="container py-3 d-flex align-items-center justify-content-between gap-3 flex-wrap">
-            <div class="text-body-secondary">
+            <div class="text-body-secondary app-brand">
                 <span class="fw-semibold text-body-emphasis"><?= e($appName) ?></span>
                 <span class="small">v<?= e($appVersion) ?></span>
             </div>

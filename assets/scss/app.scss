@@ -1,0 +1,16 @@
+// Theme overrides before importing Bootstrap.
+$primary: #3431df;
+$btn-border-radius: 0.65rem;
+$btn-font-weight: 600;
+$link-decoration: none;
+
+@import "bootstrap/scss/bootstrap";
+
+body {
+  background-color: #2778e2;
+}
+
+.navbar-brand,
+.app-brand {
+  letter-spacing: 0.02em;
+}

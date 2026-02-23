@@ -14,3 +14,4 @@ logs/*.json
 vendor/
 composer.phar
 .phpunit.result.cache
+node_modules/
