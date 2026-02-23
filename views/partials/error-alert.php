@@ -5,6 +5,6 @@ if (empty($error)) {
     return;
 }
 ?>
-<div class="bg-red-500 text-white p-4 rounded mb-4">
+<div class="alert alert-danger mb-4" role="alert">
     Error: <?= e($error) ?>
 </div>

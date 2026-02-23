@@ -2,36 +2,38 @@
 declare(strict_types=1);
 ?>
 <section>
-    <h1 class="text-2xl font-bold mb-6 text-blue-400">Daftar Laravel CMS Users</h1>
+    <h1 class="h3 mb-4">Daftar Laravel CMS Users</h1>
 
     <?php partial('partials/error-alert', ['error' => $error ?? null]); ?>
 
-    <div class="bg-gray-800 rounded-lg shadow-xl overflow-hidden">
-        <table class="w-full text-left">
-            <thead class="bg-gray-700 text-gray-300">
+    <div class="card shadow-sm border-0">
+        <div class="table-responsive">
+            <table class="table table-hover table-striped mb-0 align-middle">
+                <thead class="table-light">
                 <tr>
-                    <th class="p-4">ID</th>
-                    <th class="p-4">Name</th>
-                    <th class="p-4">Email</th>
+                        <th>ID</th>
+                        <th>Name</th>
+                        <th>Email</th>
                 </tr>
             </thead>
-            <tbody class="divide-y divide-gray-700">
+                <tbody>
                 <?php if (!empty($laravelCmsUsers)): ?>
                     <?php foreach ($laravelCmsUsers as $laravelCmsUser): ?>
-                        <tr class="hover:bg-gray-700/50">
-                            <td class="p-4 font-mono text-sm text-blue-300">
-                                <a class="hover:text-blue-200" href="/laravel-cms-users/<?= e($laravelCmsUser['id']) ?>">#<?= e($laravelCmsUser['id']) ?></a>
+                            <tr>
+                                <td class="font-monospace">
+                                    <a class="link-primary text-decoration-none" href="/laravel-cms-users/<?= e($laravelCmsUser['id']) ?>">#<?= e($laravelCmsUser['id']) ?></a>
                             </td>
-                            <td class="p-4 text-gray-200"><?= e($laravelCmsUser['name']) ?></td>
-                            <td class="p-4 text-gray-400"><?= e($laravelCmsUser['email']) ?></td>
+                                <td><?= e($laravelCmsUser['name']) ?></td>
+                                <td><?= e($laravelCmsUser['email']) ?></td>
                         </tr>
                     <?php endforeach; ?>
                 <?php else: ?>
                     <tr>
-                        <td colspan="3" class="p-10 text-center text-gray-500">Belum ada data Laravel CMS user.</td>
+                            <td colspan="3" class="text-center py-5 text-body-secondary">Belum ada data Laravel CMS user.</td>
                     </tr>
                 <?php endif; ?>
             </tbody>
         </table>
+        </div>
     </div>
 </section>

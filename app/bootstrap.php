@@ -27,11 +27,11 @@ function app_apply_security_headers(): void
     header('Permissions-Policy: geolocation=(), microphone=(), camera=()');
     header(
         "Content-Security-Policy: default-src 'self'; "
-        . "script-src 'self' https://cdn.tailwindcss.com 'unsafe-inline' 'unsafe-eval'; "
-        . "style-src 'self' 'unsafe-inline'; "
+        . "script-src 'self' https://cdn.jsdelivr.net 'unsafe-inline'; "
+        . "style-src 'self' https://cdn.jsdelivr.net 'unsafe-inline'; "
         . "img-src 'self' data:; "
         . "font-src 'self' data:; "
-        . "connect-src 'self'; "
+        . "connect-src 'self' https://cdn.jsdelivr.net; "
         . "form-action 'self'; "
         . "base-uri 'self'; "
         . "frame-ancestors 'none'; "

@@ -1,21 +1,19 @@
 <?php
 declare(strict_types=1);
 ?>
-<section class="max-w-2xl bg-gray-800 rounded-lg shadow-xl p-6">
-    <h1 class="text-2xl font-bold mb-4 text-blue-400">Laravel CMS User Detail</h1>
-    <dl class="space-y-3">
-        <div>
-            <dt class="text-gray-400 text-sm">ID</dt>
-            <dd class="text-white font-mono">#<?= e($laravelCmsUser['id'] ?? '-') ?></dd>
+<section>
+    <div class="card shadow-sm border-0">
+        <div class="card-body p-4">
+            <h1 class="h4 mb-4">Laravel CMS User Detail</h1>
+            <dl class="row mb-0">
+                <dt class="col-sm-3 text-body-secondary">ID</dt>
+                <dd class="col-sm-9 font-monospace">#<?= e($laravelCmsUser['id'] ?? '-') ?></dd>
+                <dt class="col-sm-3 text-body-secondary">Name</dt>
+                <dd class="col-sm-9"><?= e($laravelCmsUser['name'] ?? '-') ?></dd>
+                <dt class="col-sm-3 text-body-secondary">Email</dt>
+                <dd class="col-sm-9"><?= e($laravelCmsUser['email'] ?? '-') ?></dd>
+            </dl>
+            <a class="btn btn-outline-primary btn-sm mt-4" href="/laravel-cms-users">Kembali ke Laravel CMS Users</a>
         </div>
-        <div>
-            <dt class="text-gray-400 text-sm">Name</dt>
-            <dd class="text-white"><?= e($laravelCmsUser['name'] ?? '-') ?></dd>
-        </div>
-        <div>
-            <dt class="text-gray-400 text-sm">Email</dt>
-            <dd class="text-white"><?= e($laravelCmsUser['email'] ?? '-') ?></dd>
-        </div>
-    </dl>
-    <a class="inline-block mt-6 text-blue-400 hover:text-blue-300" href="/laravel-cms-users">Kembali ke Laravel CMS Users</a>
+    </div>
 </section>

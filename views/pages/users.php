@@ -2,36 +2,38 @@
 declare(strict_types=1);
 ?>
 <section>
-    <h1 class="text-2xl font-bold mb-6 text-blue-400">
+    <h1 class="h3 mb-4">
         Database: <?= e($databaseName ?? '-') ?>
     </h1>
 
     <?php partial('partials/error-alert', ['error' => $error ?? null]); ?>
 
-    <div class="bg-gray-800 rounded-lg shadow-xl overflow-hidden">
-        <table class="w-full text-left">
-            <thead class="bg-gray-700 text-gray-300">
+    <div class="card shadow-sm border-0">
+        <div class="table-responsive">
+            <table class="table table-hover table-striped mb-0 align-middle">
+                <thead class="table-light">
                 <tr>
-                    <th class="p-4">ID</th>
-                    <th class="p-4">Email</th>
+                        <th>ID</th>
+                        <th>Email</th>
                 </tr>
             </thead>
-            <tbody class="divide-y divide-gray-700">
+                <tbody>
                 <?php if (!empty($users)): ?>
                     <?php foreach ($users as $user): ?>
-                        <tr class="hover:bg-gray-700/50">
-                            <td class="p-4 font-mono text-sm text-blue-300">
-                                <a class="hover:text-blue-200" href="/users/<?= e($user['id']) ?>">#<?= e($user['id']) ?></a>
+                            <tr>
+                                <td class="font-monospace">
+                                    <a href="/users/<?= e($user['id']) ?>" class="link-primary text-decoration-none">#<?= e($user['id']) ?></a>
                             </td>
-                            <td class="p-4 text-gray-400"><?= e($user['email']) ?></td>
+                                <td><?= e($user['email']) ?></td>
                         </tr>
                     <?php endforeach; ?>
                 <?php else: ?>
                     <tr>
-                        <td colspan="2" class="p-10 text-center text-gray-500">Belum ada data user.</td>
+                            <td colspan="2" class="text-center py-5 text-body-secondary">Belum ada data user.</td>
                     </tr>
                 <?php endif; ?>
             </tbody>
         </table>
+        </div>
     </div>
 </section>
