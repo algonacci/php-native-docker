@@ -28,10 +28,10 @@ function app_apply_security_headers(): void
     header(
         "Content-Security-Policy: default-src 'self'; "
         . "script-src 'self' https://cdn.jsdelivr.net 'unsafe-inline'; "
-        . "style-src 'self' https://cdn.jsdelivr.net 'unsafe-inline'; "
+        . "style-src 'self' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com 'unsafe-inline'; "
         . "img-src 'self' data:; "
-        . "font-src 'self' data:; "
-        . "connect-src 'self' https://cdn.jsdelivr.net; "
+        . "font-src 'self' https://cdnjs.cloudflare.com data:; "
+        . "connect-src 'self' https://cdn.jsdelivr.net https://connectivitycheck.gstatic.com; "
         . "form-action 'self'; "
         . "base-uri 'self'; "
         . "frame-ancestors 'none'; "

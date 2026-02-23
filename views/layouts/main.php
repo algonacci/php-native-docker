@@ -47,6 +47,7 @@ $renderNavigation = static function (array $items, string $activePath): void {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?= e($title) ?></title>
     <link rel="stylesheet" href="/assets/css/app.css?v=<?= e($appVersion) ?>">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" />
 </head>
 <body class="bg-body-tertiary min-vh-100">
 <?php if ($showNavigation): ?>
@@ -57,6 +58,9 @@ $renderNavigation = static function (array $items, string $activePath): void {
             </button>
             <a class="navbar-brand app-brand mb-0 h1" href="<?= e($usersRoute) ?>"><?= e($appName) ?></a>
             <div class="d-flex align-items-center gap-2">
+                <button class="theme-toggle" type="button" aria-label="Toggle dark mode" title="Toggle dark mode">
+                    <i class="fas fa-moon"></i>
+                </button>
                 <span class="text-body-secondary small d-none d-md-inline">v<?= e($appVersion) ?></span>
                 <span class="text-body-secondary small d-none d-sm-inline"><?= e($userName) ?></span>
                 <form action="/logout" method="post" class="d-inline">
@@ -67,10 +71,10 @@ $renderNavigation = static function (array $items, string $activePath): void {
         </div>
     </header>
 
-    <div class="container-fluid">
+    <div class="container-fluid px-0">
         <div class="row g-0">
             <aside class="col-lg-3 col-xl-2 d-none d-lg-block border-end bg-white" style="position: sticky; top: <?= e($desktopHeaderOffset) ?>; height: calc(100vh - <?= e($desktopHeaderOffset) ?>);">
-                <div class="p-3 h-100 d-flex flex-column">
+                <div class="px-3 px-lg-4 py-3 h-100 d-flex flex-column">
                     <div class="small text-uppercase text-body-secondary fw-semibold mb-2">Navigation</div>
                     <ul class="nav nav-pills flex-column gap-1">
                         <?php $renderNavigation($navigationItems, $currentPath); ?>
@@ -111,6 +115,9 @@ $renderNavigation = static function (array $items, string $activePath): void {
                 <span class="fw-semibold text-body-emphasis"><?= e($appName) ?></span>
                 <span class="small">v<?= e($appVersion) ?></span>
             </div>
+            <button class="theme-toggle" type="button" aria-label="Toggle dark mode" title="Toggle dark mode">
+                <i class="fas fa-moon"></i>
+            </button>
         </div>
     </header>
     <main class="container py-4 py-md-5">
@@ -119,5 +126,7 @@ $renderNavigation = static function (array $items, string $activePath): void {
 <?php endif; ?>
     <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.11.8/dist/umd/popper.min.js" integrity="sha384-I7E8VVD/ismYTF4hNIPjVp/Zjvgyol6VFvRkX/vR+Vc4jQkC+hVqc2pM8ODewa9r" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.min.js" integrity="sha384-G/EV+4j2dNv+tEPo3++6LCgdCROaejBqfUeNjuKAiuXbjrxilcCdDz6ZAVfHWe1Y" crossorigin="anonymous"></script>
+    <script src="/js/darkMode.js"></script>
+    <script src="/js/networkGuard.js"></script>
 </body>
 </html>

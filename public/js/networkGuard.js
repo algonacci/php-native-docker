@@ -10,7 +10,7 @@
     // Configuration
     const CONFIG = {
         CHECK_URL: 'https://connectivitycheck.gstatic.com/generate_204',
-        CHECK_INTERVAL: 10000,      // Check every 10 seconds
+        CHECK_INTERVAL: 5000,       // Check every 5 seconds (more responsive)
         GRACE_PERIOD: 2000,         // 2 second delay before disabling
         STATUS_KEY: 'networkGuardStatus' // LocalStorage key
     };
@@ -65,117 +65,17 @@
     function createStatusIndicator() {
         const indicator = document.createElement('div');
         indicator.id = 'network-status-indicator';
-        indicator.className = 'network-status-indicator';
+        indicator.className = 'network-status-indicator online';
         indicator.innerHTML = `
-            <div class="status-light online" data-status="online">
-                <span class="light-dot"></span>
-                <span class="status-label">Online</span>
-            </div>
-            <div class="status-light offline" data-status="offline">
-                <span class="light-dot"></span>
-                <span class="status-label">Offline</span>
-            </div>
-            <div class="status-light checking" data-status="checking">
-                <span class="light-dot"></span>
-                <span class="status-label">Checking...</span>
-            </div>
+            <span class="light-dot"></span>
+            <span class="status-label">Online</span>
         `;
-
-        // Set initial state - show online, hide others using class
-        const lights = indicator.querySelectorAll('.status-light');
-        lights.forEach(light => {
-            light.classList.remove('active');
-        });
-        const onlineLight = indicator.querySelector('.status-light.online');
-        if (onlineLight) {
-            onlineLight.classList.add('active');
-        }
-
-        // Inject styles
-        const style = document.createElement('style');
-        style.id = 'network-indicator-styles';
-        style.textContent = `
-            .network-status-indicator {
-                display: flex;
-                align-items: center;
-                gap: 8px;
-                margin-right: 15px;
-            }
-
-            .status-light {
-                display: none;
-                align-items: center;
-                gap: 6px;
-                padding: 4px 10px;
-                border-radius: 20px;
-                font-size: 12px;
-                font-weight: 500;
-                transition: all 0.3s ease;
-            }
-
-            .status-light.active {
-                display: flex !important;
-            }
-
-            .status-light .light-dot {
-                width: 10px;
-                height: 10px;
-                border-radius: 50%;
-                box-shadow: 0 0 8px currentColor;
-                animation: none;
-            }
-
-            .status-light .status-label {
-                color: white;
-                text-shadow: 0 1px 2px rgba(0,0,0,0.3);
-            }
-
-            /* Online - Green */
-            .status-light.online .light-dot {
-                background-color: #2ecc71;
-                color: #2ecc71;
-                box-shadow: 0 0 10px #2ecc71, 0 0 20px #2ecc71;
-                animation: pulse-green 2s infinite;
-            }
-
-            /* Offline - Red */
-            .status-light.offline .light-dot {
-                background-color: #e74c3c;
-                color: #e74c3c;
-                box-shadow: 0 0 8px #e74c3c;
-                animation: blink-red 1s infinite;
-            }
-
-            /* Checking - Yellow/Orange */
-            .status-light.checking .light-dot {
-                background-color: #f39c12;
-                color: #f39c12;
-                box-shadow: 0 0 8px #f39c12;
-                animation: pulse-yellow 0.5s infinite;
-            }
-
-            @keyframes pulse-green {
-                0%, 100% { box-shadow: 0 0 10px #2ecc71, 0 0 20px #2ecc71; }
-                50% { box-shadow: 0 0 5px #2ecc71, 0 0 10px #2ecc71; }
-            }
-
-            @keyframes blink-red {
-                0%, 100% { opacity: 1; }
-                50% { opacity: 0.4; }
-            }
-
-            @keyframes pulse-yellow {
-                0%, 100% { transform: scale(1); }
-                50% { transform: scale(1.2); }
-            }
-        `;
-        document.head.appendChild(style);
 
         // Find navbar and insert indicator
-        const navbar = document.querySelector('.navbar-nav.ms-auto.ms-md-0.me-3.me-lg-4');
+        const navbarActions = document.querySelector('.d-flex.align-items-center.gap-2');
 
-        if (navbar) {
-            navbar.parentNode.insertBefore(indicator, navbar);
+        if (navbarActions) {
+            navbarActions.insertBefore(indicator, navbarActions.firstChild);
         } else {
             // Fallback: insert after navbar brand
             const navbarBrand = document.querySelector('.navbar-brand');
@@ -265,14 +165,20 @@
      * Check internet connectivity using fetch
      */
     async function checkInternet() {
-        // Only show checking UI if we're already in offline or grace period state
+        // Fast path: browser already knows it's offline
+        if (navigator.onLine === false) {
+            setOffline();
+            return;
+        }
+
         const wasOffline = lastKnownStatus === 'OFFLINE' || lastKnownStatus === 'CHECKING_GRACE';
 
+        // Update internal state
+        lastKnownStatus = 'CHECKING';
+
+        // If we were offline, show checking UI to indicate we're trying to reconnect
         if (wasOffline) {
-            lastKnownStatus = 'CHECKING';
             updateIndicator('checking');
-        } else {
-            lastKnownStatus = 'CHECKING';
         }
 
         try {
@@ -291,11 +197,8 @@
             setOnline();
 
         } catch (error) {
-            // Network error - might be offline
-            // Only show offline UI if we're already in grace period
-            if (wasOffline) {
-                setOffline();
-            }
+            // Network error - definitively offline or transient drop
+            setOffline();
         }
     }
 
@@ -420,30 +323,30 @@
             }
         }
 
-        // Get all status lights
-        const onlineLight = indicator.querySelector('.status-light.online');
-        const offlineLight = indicator.querySelector('.status-light.offline');
-        const checkingLight = indicator.querySelector('.status-light.checking');
+        // Remove all status classes
+        indicator.classList.remove('online', 'offline', 'checking');
 
-        // Hide all lights first using CSS class
-        if (onlineLight) onlineLight.classList.remove('active');
-        if (offlineLight) offlineLight.classList.remove('active');
-        if (checkingLight) checkingLight.classList.remove('active');
-
-        // Show the active light (normalize status to lowercase)
-        let activeLight;
+        // Add the appropriate status class (normalize status to lowercase)
         const normalizedStatus = status ? status.toLowerCase() : '';
 
-        if (normalizedStatus === 'checking') {
-            activeLight = checkingLight;
+        if (normalizedStatus === 'checking' || normalizedStatus === 'checking_grace') {
+            indicator.classList.add('checking');
         } else if (normalizedStatus === 'offline') {
-            activeLight = offlineLight;
-        } else if (normalizedStatus === 'online') {
-            activeLight = onlineLight;
+            indicator.classList.add('offline');
+        } else {
+            indicator.classList.add('online');
         }
 
-        if (activeLight) {
-            activeLight.classList.add('active');
+        // Update label
+        const label = indicator.querySelector('.status-label');
+        if (label) {
+            if (normalizedStatus === 'checking' || normalizedStatus === 'checking_grace') {
+                label.textContent = 'Checking...';
+            } else if (normalizedStatus === 'offline') {
+                label.textContent = 'Offline';
+            } else {
+                label.textContent = 'Online';
+            }
         }
     }
 

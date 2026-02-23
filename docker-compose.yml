@@ -3,7 +3,7 @@ services:
     build: .
     container_name: native-php-franken
     ports:
-      - "8200:80"
+      - "8251:80"
       - "8250:443"
     env_file:
       - .env
