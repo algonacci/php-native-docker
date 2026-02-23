@@ -22,10 +22,15 @@ $assessmentsRoute = isset($app['routes']['assessments']) ? (string) $app['routes
                 <span class="font-semibold"><?= e($appName) ?></span>
                 <span class="text-gray-500 text-sm">v<?= e($appVersion) ?></span>
             </div>
-            <nav class="flex gap-6">
-                <a class="text-blue-400 hover:text-blue-300" href="<?= e($usersRoute) ?>">Users</a>
-                <a class="text-blue-400 hover:text-blue-300" href="<?= e($assessmentsRoute) ?>">Assessments</a>
-            </nav>
+            <?php $currentPath = parse_url((string) ($_SERVER['REQUEST_URI'] ?? '/'), PHP_URL_PATH); ?>
+            <?php if ($currentPath !== '/login' && app_is_authenticated()): ?>
+                <nav class="flex gap-6">
+                    <a class="text-blue-400 hover:text-blue-300" href="<?= e($usersRoute) ?>">Users</a>
+                    <a class="text-blue-400 hover:text-blue-300" href="/laravel-cms-users">Laravel CMS Users</a>
+                    <a class="text-blue-400 hover:text-blue-300" href="<?= e($assessmentsRoute) ?>">Assessments</a>
+                    <a class="text-red-400 hover:text-red-300" href="/logout">Logout (<?= e($_SESSION['user_name'] ?? '') ?>)</a>
+                </nav>
+            <?php endif; ?>
         </div>
     </header>
 

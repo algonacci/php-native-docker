@@ -11,6 +11,8 @@ final class UsersController
 
     public function getUsers(): void
     {
+        app_require_auth();
+
         $app = app_context();
         $error = null;
         $users = [];
@@ -34,6 +36,8 @@ final class UsersController
 
     public function getUserDetailByID(string $id): void
     {
+        app_require_auth();
+
         $path = '/users/' . $id;
 
         if (!$this->isValidPositiveInteger($id)) {

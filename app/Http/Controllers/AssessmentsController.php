@@ -11,6 +11,8 @@ final class AssessmentsController
 
     public function getAllAssessments(): void
     {
+        app_require_auth();
+
         $app = app_context();
         $error = null;
         $assessments = [];
@@ -33,6 +35,8 @@ final class AssessmentsController
 
     public function getAssessmentDetailByID(string $id): void
     {
+        app_require_auth();
+
         $path = '/assessments/' . $id;
 
         if (!$this->isValidPositiveInteger($id)) {

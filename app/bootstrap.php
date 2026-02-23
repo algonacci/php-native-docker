@@ -1,17 +1,22 @@
 <?php
 declare(strict_types=1);
 
+session_start();
+
 require_once __DIR__ . '/db.php';
 require_once __DIR__ . '/config.php';
 require_once __DIR__ . '/helpers.php';
 require_once __DIR__ . '/view.php';
 require_once __DIR__ . '/Container.php';
 require_once __DIR__ . '/Repositories/UserRepository.php';
+require_once __DIR__ . '/Repositories/LaravelCmsUserRepository.php';
 require_once __DIR__ . '/Repositories/AssessmentRepository.php';
 require_once __DIR__ . '/Http/Router.php';
 require_once __DIR__ . '/Http/Controllers/ErrorController.php';
 require_once __DIR__ . '/Http/Controllers/UsersController.php';
 require_once __DIR__ . '/Http/Controllers/AssessmentsController.php';
+require_once __DIR__ . '/Http/Controllers/LaravelCmsUsersController.php';
+require_once __DIR__ . '/Http/Controllers/AuthController.php';
 
 function app_is_debug(): bool
 {
@@ -47,6 +52,7 @@ function app_context(): array
         'routes' => [
             'home' => (string) config('routes.home', '/'),
             'users' => (string) config('routes.users', '/users'),
+            'laravelCmsUsers' => (string) config('routes.laravelCmsUsers', '/laravel-cms-users'),
             'assessments' => (string) config('routes.assessments', '/assessments'),
         ],
     ];
@@ -65,6 +71,7 @@ function app_container(): Container
     $container = new Container();
 
     $container->singleton(UserRepository::class, static fn(Container $c): UserRepository => new UserRepository());
+    $container->singleton(LaravelCmsUserRepository::class, static fn(Container $c): LaravelCmsUserRepository => new LaravelCmsUserRepository());
     $container->singleton(AssessmentRepository::class, static fn(Container $c): AssessmentRepository => new AssessmentRepository());
     $container->singleton(ErrorController::class, static fn(Container $c): ErrorController => new ErrorController());
     $container->singleton(
@@ -75,9 +82,23 @@ function app_container(): Container
         )
     );
     $container->singleton(
+        LaravelCmsUsersController::class,
+        static fn(Container $c): LaravelCmsUsersController => new LaravelCmsUsersController(
+            $c->get(LaravelCmsUserRepository::class),
+            $c->get(ErrorController::class),
+        )
+    );
+    $container->singleton(
         AssessmentsController::class,
         static fn(Container $c): AssessmentsController => new AssessmentsController(
             $c->get(AssessmentRepository::class),
+            $c->get(ErrorController::class),
+        )
+    );
+    $container->singleton(
+        AuthController::class,
+        static fn(Container $c): AuthController => new AuthController(
+            $c->get(LaravelCmsUserRepository::class),
             $c->get(ErrorController::class),
         )
     );
@@ -95,30 +116,52 @@ function app_router(): Router
 
     $container = app_container();
     $usersController = $container->get(UsersController::class);
+    $laravelCmsUsersController = $container->get(LaravelCmsUsersController::class);
     $assessmentsController = $container->get(AssessmentsController::class);
+    $authController = $container->get(AuthController::class);
 
-    if (!$usersController instanceof UsersController || !$assessmentsController instanceof AssessmentsController) {
+    if (!$usersController instanceof UsersController || !$laravelCmsUsersController instanceof LaravelCmsUsersController || !$assessmentsController instanceof AssessmentsController || !$authController instanceof AuthController) {
         throw new RuntimeException('Failed to resolve controllers from container.');
     }
 
     $routes = app_context()['routes'] ?? [];
     $homePath = Router::normalizePath((string) ($routes['home'] ?? '/'));
     $usersPath = Router::normalizePath((string) ($routes['users'] ?? '/users'));
+    $laravelCmsUsersPath = Router::normalizePath((string) ($routes['laravelCmsUsers'] ?? '/laravel-cms-users'));
     $assessmentsPath = Router::normalizePath((string) ($routes['assessments'] ?? '/assessments'));
 
     $usersDetailPath = $usersPath === '/' ? '/{id}' : $usersPath . '/{id}';
+    $laravelCmsUsersDetailPath = $laravelCmsUsersPath === '/' ? '/{id}' : $laravelCmsUsersPath . '/{id}';
     $assessmentsDetailPath = $assessmentsPath === '/' ? '/{id}' : $assessmentsPath . '/{id}';
 
     $router = new Router();
     $router->get($homePath, static function () use ($usersPath): void {
         header('Location: ' . $usersPath, true, 302);
     });
+    $router->get('/login', [$authController, 'showLogin']);
+    $router->post('/login', [$authController, 'login']);
+    $router->get('/logout', [$authController, 'logout']);
     $router->get($usersPath, [$usersController, 'getUsers']);
     $router->get($usersDetailPath, [$usersController, 'getUserDetailByID']);
+    $router->get($laravelCmsUsersPath, [$laravelCmsUsersController, 'getLaravelCmsUsers']);
+    $router->get($laravelCmsUsersDetailPath, [$laravelCmsUsersController, 'getLaravelCmsUserDetailByID']);
     $router->get($assessmentsPath, [$assessmentsController, 'getAllAssessments']);
     $router->get($assessmentsDetailPath, [$assessmentsController, 'getAssessmentDetailByID']);
 
     return $router;
+}
+
+function app_is_authenticated(): bool
+{
+    return isset($_SESSION['user_id']) && $_SESSION['user_id'] > 0;
+}
+
+function app_require_auth(): void
+{
+    if (!app_is_authenticated()) {
+        header('Location: /login', true, 302);
+        exit;
+    }
 }
 
 error_reporting(E_ALL);
